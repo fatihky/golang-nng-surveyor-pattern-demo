@@ -11,9 +11,7 @@ services:
      - internal
 
    search:
-     <<: *base
-     networks:
-     - internal
+     <<: *base     
      command: ["server", "--url", "tcp://search:40899"]
 
    recursivesearch:
