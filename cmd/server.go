@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"time"
 
+	// "github.com/k0kubun/pp"
         "github.com/spf13/cobra"
 	"go.nanomsg.org/mangos/v3"
 	"go.nanomsg.org/mangos/v3/protocol/surveyor"
@@ -27,7 +28,7 @@ var ServerCmd = &cobra.Command{
 }
 
 func init() {
-	ServerCmd.Flags().StringVarP(&serverURL, "url", "", "tcp://127.0.0.1:40899", "Server URL")
+	ServerCmd.Flags().StringVarP(&serverURL, "url", "", "tcp://search:40899", "Server URL")
 	RootCmd.AddCommand(ServerCmd)
 }
 
@@ -55,8 +56,7 @@ func server(url string) {
 			if msg, err = sock.Recv(); err != nil {
 				break
 			}
-			fmt.Printf("SERVER: RECEIVED \"%s\" SURVEY RESPONSE\n",
-				string(msg))
+			fmt.Printf("SERVER: RECEIVED \"%s\" SURVEY RESPONSE\n",	string(msg))
 		}
 		fmt.Println("SERVER: SURVEY OVER")
 	}

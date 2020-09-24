@@ -12,11 +12,9 @@ services:
 
    search:
      <<: *base
-     depends_on:
-     - websearch
-     - video
-     - image
-     command: ["server"]
+     networks:
+     - internal
+     command: ["server", "--url", "tcp://search:40899"]
 
    recursivesearch:
      <<: *base
