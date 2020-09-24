@@ -1,0 +1,39 @@
+---
+version: '3.8'
+services:
+  
+   core: &base
+     image: paper2code/golang-nng-surveyor-pattern-demo:latest-alpine3.12
+     build:
+       context: .
+       dockerfile: Dockerfile
+     networks:
+     - internal
+
+   search:
+     <<: *base
+     depends_on:
+     - websearch
+     - video
+     - image
+     command: ["server"]
+
+   recursivesearch:
+     <<: *base
+     command: ["client", "--name", "recursivesearch", "--surveyor-url", "tcp://search:40899"]
+
+   websearch:
+     <<: *base
+     command: ["client", "--name", "websearch", "--surveyor-url", "tcp://search:40899"]
+
+   video:
+     <<: *base
+     command: ["client", "--name", "video", "--surveyor-url", "tcp://search:40899"]
+
+   image:
+     <<: *base
+     command: ["client", "--name", "image", "--surveyor-url", "tcp://search:40899"]
+
+networks:
+  internal:
+    driver: bridge
