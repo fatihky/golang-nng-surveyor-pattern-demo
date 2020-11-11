@@ -7,6 +7,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	cmap "github.com/orcaman/concurrent-map"
+	"github.com/satori/go.uuid"
 	"github.com/spf13/cobra"
 	"go.nanomsg.org/mangos/v3"
 	"go.nanomsg.org/mangos/v3/protocol/surveyor"
@@ -44,18 +45,22 @@ var ServerCmd = &cobra.Command{
 				return
 			}
 			time.Sleep(time.Second / 8)
-			reponses := make(map[string]interface{}, 0)
+
+			reponse := make(map[string]interface{}, 0)
+			results := make(map[string]interface{}, 0)
 			for {
 				// Prepare query to respondent
 				respondentQuery := &models.Query{
 					CreatedAt: time.Now(),
 					Query:     query,
+					UUID:      uuid.NewV4().String(),
 				}
 				respondentQueryBytes, err := json.Marshal(&respondentQuery)
 				if err != nil {
 					log.Fatal(err)
 				}
 
+				reponse["query"] = respondentQuery
 				// sending the auery to the respondent
 				fmt.Println("SERVER: SENDING DATE SURVEY REQUEST")
 				if err = sock.Send(respondentQueryBytes); err != nil {
@@ -78,17 +83,19 @@ var ServerCmd = &cobra.Command{
 						if err := json.Unmarshal(msg, &respondentResponse); err != nil {
 							log.Fatal(err)
 						}
-						reponses[respondentResponse.ServiceName] = respondentResponse
+						results[respondentResponse.ServiceName] = respondentResponse
 						log.Infof("SERVER: RECEIVED \"%s\" SURVEY RESPONSE\n", string(msg))
 					}
 				}
+				reponse["results"] = results
 				end := time.Now()
 				responseTime := end.Sub(start)
 				timerMs := int64(responseTime / time.Millisecond)
 				timerNs := int64(responseTime / time.Nanosecond)
+				reponse["timer_ms"] = timerMs
 				log.Infof("SERVER: SURVEY OVER, took %d ms, %d ns", timerMs, timerNs)
 				sock.Close()
-				c.IndentedJSON(http.StatusOK, reponses)
+				c.IndentedJSON(http.StatusOK, reponse)
 				break
 			}
 			return
