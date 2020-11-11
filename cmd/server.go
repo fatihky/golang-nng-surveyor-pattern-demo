@@ -5,7 +5,7 @@ import (
 	"time"
 
 	// "github.com/k0kubun/pp"
-        "github.com/spf13/cobra"
+	"github.com/spf13/cobra"
 	"go.nanomsg.org/mangos/v3"
 	"go.nanomsg.org/mangos/v3/protocol/surveyor"
 
@@ -14,7 +14,7 @@ import (
 )
 
 var (
-  serverURL string
+	serverURL string
 )
 
 var ServerCmd = &cobra.Command{
@@ -23,7 +23,7 @@ var ServerCmd = &cobra.Command{
 	Short:   "Start the server",
 	Long:    "Start the nng server",
 	Run: func(cmd *cobra.Command, args []string) {
-	   server(serverURL)
+		server(serverURL)
 	},
 }
 
@@ -54,9 +54,10 @@ func server(url string) {
 		}
 		for {
 			if msg, err = sock.Recv(); err != nil {
+				fmt.Printf("Failed receiving survey results: %s\n", err.Error())
 				break
 			}
-			fmt.Printf("SERVER: RECEIVED \"%s\" SURVEY RESPONSE\n",	string(msg))
+			fmt.Printf("SERVER: RECEIVED \"%s\" SURVEY RESPONSE\n", string(msg))
 		}
 		fmt.Println("SERVER: SURVEY OVER")
 	}
