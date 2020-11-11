@@ -5,8 +5,12 @@ import (
 	"os"
 	"time"
 
+	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
-	// "github.com/spf13/cobra/doc"
+)
+
+var (
+	log = logrus.New()
 )
 
 // RootCmd is the root command for limo
@@ -32,5 +36,3 @@ func die(format string, v ...interface{}) {
 func date() string {
 	return time.Now().Format(time.ANSIC)
 }
-
-
