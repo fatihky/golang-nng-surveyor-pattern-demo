@@ -8,7 +8,9 @@ import (
 	"github.com/gin-gonic/gin"
 	cmap "github.com/orcaman/concurrent-map"
 	"github.com/satori/go.uuid"
+	e3ch "github.com/soyking/e3ch"
 	"github.com/spf13/cobra"
+	"go.etcd.io/etcd/clientv3"
 	"go.nanomsg.org/mangos/v3"
 	"go.nanomsg.org/mangos/v3/protocol/surveyor"
 	_ "go.nanomsg.org/mangos/v3/transport/all"
@@ -21,6 +23,9 @@ var (
 	surveyorAddress  string
 	surveyorTimeout  int
 	surveyorMessages cmap.ConcurrentMap // Just for testing the aggregation of survey's responses and not having race conditions on standard maps
+	e3Endpoints      []string
+	e3Client         *clientv3.Client
+	e3chClient       *e3ch.EtcdHRCHYClient
 )
 
 var ServerCmd = &cobra.Command{
@@ -29,6 +34,26 @@ var ServerCmd = &cobra.Command{
 	Short:   "Start the surveyor server",
 	Long:    "Start the surveyor restful server",
 	Run: func(cmd *cobra.Command, args []string) {
+
+		// init etcd kv store
+		// initial etcd v3 client
+		var err error
+		e3Client, err = clientv3.New(clientv3.Config{Endpoints: []string{"127.0.0.1:2379"}})
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		// new e3ch client with namespace(rootKey)
+		e3chClient, err = e3ch.New(e3Client, "surveyor")
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		// set the rootKey as directory
+		err = e3chClient.FormatRootKey()
+		if err != nil {
+			log.Fatal(err)
+		}
 
 		// init default gin-gonic instance
 		r := gin.Default()
@@ -109,6 +134,7 @@ var ServerCmd = &cobra.Command{
 }
 
 func init() {
+	ServerCmd.Flags().StringSliceVarP(&e3Endpoints, "etcd-endpoints", "", []string{"127.0.0.1:2379"}, "Etcd server address")
 	ServerCmd.Flags().StringVarP(&serverAddress, "server-address", "", "0.0.0.0:3200", "HTTP server Address")
 	ServerCmd.Flags().StringVarP(&surveyorAddress, "surveyor-address", "", "tcp://localhost:40999", "Surveyor Address")
 	ServerCmd.Flags().IntVarP(&surveyorTimeout, "surveyor-timeout", "", 20000, "Surveyor request timeout in millisecond")

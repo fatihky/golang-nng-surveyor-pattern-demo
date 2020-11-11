@@ -7,3 +7,6 @@
 [submodule ".docker/tor-haproxy"]
 	path = .docker/tor-haproxy
 	url = https://github.com/x0rzkov/alpine-tor
+[submodule ".docker/e3w"]
+	path = .docker/e3w
+	url = https://github.com/x0rzkov/e3w
