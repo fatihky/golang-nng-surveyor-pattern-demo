@@ -34,6 +34,7 @@ var ServerCmd = &cobra.Command{
 
 		// setup a basic GET endpoint for test
 		r.GET("/surveyor/:query", func(c *gin.Context) {
+			start := time.Now()
 			query := c.Params.ByName("query")
 			// todo. assert that query is not empty, either return 400 message
 			sock, err := newSurveyor(surveyorAddress)
@@ -42,7 +43,7 @@ var ServerCmd = &cobra.Command{
 				// todo: return 400 message
 				return
 			}
-			time.Sleep(time.Second / 2)
+			time.Sleep(time.Second / 8)
 			reponses := make(map[string]interface{}, 0)
 			for {
 				// Prepare query to respondent
@@ -81,7 +82,11 @@ var ServerCmd = &cobra.Command{
 						log.Infof("SERVER: RECEIVED \"%s\" SURVEY RESPONSE\n", string(msg))
 					}
 				}
-				log.Info("SERVER: SURVEY OVER")
+				end := time.Now()
+				responseTime := end.Sub(start)
+				timerMs := int64(responseTime / time.Millisecond)
+				timerNs := int64(responseTime / time.Nanosecond)
+				log.Infof("SERVER: SURVEY OVER, took %d ms, %d ns", timerMs, timerNs)
 				sock.Close()
 				c.IndentedJSON(http.StatusOK, reponses)
 				break
@@ -112,7 +117,7 @@ func newSurveyor(url string) (sock mangos.Socket, err error) {
 		log.Warnf("can't listen on surveyor socket: %s", err)
 		return nil, err
 	}
-	err = sock.SetOption(mangos.OptionSurveyTime, time.Second)
+	err = sock.SetOption(mangos.OptionSurveyTime, time.Second/2)
 	if err != nil {
 		log.Warnf("SetOption(): %s", err)
 		return nil, err

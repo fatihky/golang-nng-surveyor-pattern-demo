@@ -47,12 +47,18 @@ var ClientCmd = &cobra.Command{
 					log.Infof("CLIENT(%s): RECEIVED \"%s\" SURVEY REQUEST\n", respondentName, surveyorQuery.Query)
 					var results []string
 					results = append(results, gofakeit.HackerPhrase())
+					now := time.Now()
 					respondentAnswer := &models.Response{
-						CreatedAt:   time.Now(),
+						CreatedAt:   now,
 						ServiceName: respondentName,
 						Query:       surveyorQuery.Query,
 						Results:     interfaceSlice(results),
 					}
+
+					// calculate the response time
+					responseTime := now.Sub(surveyorQuery.CreatedAt)
+					respondentAnswer.ResponseTimeMs = int64(responseTime / time.Millisecond)
+					respondentAnswer.ResponseTimeNs = int64(responseTime / time.Nanosecond)
 					respondentAnswerBytes, err := json.Marshal(&respondentAnswer)
 					if err != nil {
 						log.Fatal(err)
