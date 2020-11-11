@@ -1,3 +1,9 @@
 [submodule "makefiles"]
 	path = makefiles
 	url = https://github.com/ncarlier/makefiles
+[submodule ".docker/searx-redis"]
+	path = .docker/searx-redis
+	url = https://gitlab.e.foundation/e/cloud/my-spot
+[submodule ".docker/tor-haproxy"]
+	path = .docker/tor-haproxy
+	url = https://github.com/x0rzkov/alpine-tor

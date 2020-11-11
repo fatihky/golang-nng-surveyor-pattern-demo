@@ -2,34 +2,97 @@
 version: '3.8'
 services:
   
-   core: &base
-     image: paper2code/golang-nng-surveyor-pattern-demo:latest-alpine3.12
-     build:
-       context: .
-       dockerfile: Dockerfile
-     networks:
-     - internal
+  core: &base
+    image: paper2code/golang-mangos-surveyor-pattern-demo:latest-alpine3.12
+    build:
+      context: .
+      dockerfile: Dockerfile
+    networks:
+    - internal
 
-   search:
-     <<: *base     
-     command: ["server", "--url", "tcp://search:40899"]
+  search:
+    <<: *base     
+    command: ["server", "--surveyor-address", "tcp://search:40999"]
 
-   recursivesearch:
-     <<: *base
-     command: ["client", "--name", "recursivesearch", "--surveyor-url", "tcp://search:40899"]
+  recursivesearch:
+    <<: *base
+    command: ["client", "--respondent-name", "recursivesearch", "--respondent-surveyor", "tcp://search:40999"]
 
-   websearch:
-     <<: *base
-     command: ["client", "--name", "websearch", "--surveyor-url", "tcp://search:40899"]
+  websearch:
+    <<: *base
+    command: ["client", "--respondent-name", "websearch", "--respondent-surveyor", "tcp://search:40999"]
 
-   video:
-     <<: *base
-     command: ["client", "--name", "video", "--surveyor-url", "tcp://search:40899"]
+  video:
+    <<: *base
+    command: ["client", "--respondent-name", "video", "--respondent-surveyor", "tcp://search:40999"]
 
-   image:
-     <<: *base
-     command: ["client", "--name", "image", "--surveyor-url", "tcp://search:40899"]
+  image:
+    <<: *base
+    command: ["client", "--respondent-name", "image", "--respondent-surveyor", "tcp://search:40999"]
+
+  searx-cache:
+    image: x0rzkov/searx-redis:latest
+    container_name: ${NAMESPACE}-searx-redis
+    build:
+      context: .docker/searx-redis
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+    - BIND_ADDRESS=0.0.0.0:1979
+    environment:
+      SEARX_SECRET: ":@)%NN0+OqNdy:{prWQlZ{p9|oO9p-UyJq@%V!~G:arrSx6fXz.{jd%=XF44ncj"
+      # SEARX_MORTY_URL: 
+      # SEARX_MORTY_KEY: "${SEARX_MORTY_KEY:-KHN0ZGluKT0gNWNmNzQ0Y2JlNjI4MDRjODAwZGUyMGY5ZjZlZTFmZWI1NTg2YTg5OAo=}"
+      SEARX_PROXY_HTTP: "socks5://tor-haproxy:5566"
+      SEARX_PROXY_HTTPS: "socks5://tor-haproxy:5566"
+      SEARX_REDIS_HOST: "redis"
+      GUNICORN_LOGGER: 1
+      GUNICORN_LEVEL: INFO
+    depends_on:
+    - redis
+    - tor-haproxy
+    volumes:
+    - ./shared/config/searx/settings.yml:/etc/searx/settings.yml
+    - ./shared/config/searx/settings.yml:/usr/local/lib/python3.8/site-packages/searx/settings.yml
+    ports:
+    - 1979:1979
+    networks:
+    - internal
+    - web
+    command: ["gunicorn", "-w", "10", "-b", "0.0.0.0:1979", "searx.webapp:app"]
+
+  tor-haproxy:
+    image: x0rzkov/tor-haproxy:latest       
+    container_name: ${NAMESPACE}-tor-haproxy
+    build:
+      context: .docker/tor-haproxy
+      dockerfile: Dockerfile
+    environment:
+    - privoxy=1
+    - privoxy_port=8119
+    - tors=25
+    networks:
+    - internal
+    ports:
+    - 5566:5566
+    restart: unless-stopped
+
+  redis:
+    image: redis:6-alpine
+    container_name: ${NAMESPACE}-redis
+    networks:
+    - internal
+    volumes:
+    - redis-data:/data
+    restart: unless-stopped
+    command:
+    - "redis-server"
+    - "--maxmemory 30G"
+    - "--maxmemory-policy allkeys-lru"
 
 networks:
   internal:
     driver: bridge
+
+volumes:
+  redis-data:
