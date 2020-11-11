@@ -7,27 +7,36 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    networks:
-    - internal
 
   search:
     <<: *base     
+    networks:
+    - internal
+    - web
     command: ["server", "--surveyor-address", "tcp://search:40999"]
 
   recursivesearch:
     <<: *base
+    networks:
+    - internal
     command: ["client", "--respondent-name", "recursivesearch", "--respondent-surveyor", "tcp://search:40999"]
 
   websearch:
     <<: *base
+    networks:
+    - internal
     command: ["client", "--respondent-name", "websearch", "--respondent-surveyor", "tcp://search:40999"]
 
   video:
     <<: *base
+    networks:
+    - internal
     command: ["client", "--respondent-name", "video", "--respondent-surveyor", "tcp://search:40999"]
 
   image:
     <<: *base
+    networks:
+    - internal
     command: ["client", "--respondent-name", "image", "--respondent-surveyor", "tcp://search:40999"]
 
   searx-cache:
@@ -90,9 +99,21 @@ services:
     - "--maxmemory 30G"
     - "--maxmemory-policy allkeys-lru"
 
+  etcd:
+    image: quay.io/coreos/etcd:v3.4.13
+    container_name: ${NAMESPACE}-etcd
+    command: etcd -name etcd --listen-client-urls http://0.0.0.0:2379 --advertise-client-urls http://0.0.0.0:2379
+    # ports:
+    # - "2379:2379"
+    # - "2380:2380"
+    networks:
+    - internal
+
 networks:
   internal:
     driver: bridge
+  web:
+    external: true
 
 volumes:
   redis-data:
