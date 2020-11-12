@@ -67,7 +67,8 @@ clean:
 deps:
 	export GO111MODULE=off
 	echo ">>> Installing dependencies"
-	go get github.com/mattn/goreman
+	go get -u github.com/mattn/goreman
+	go get -u github.com/tsenart/vegeta
 	# go get -u github.com/go-bindata/go-bindata/...
 	export GO111MODULE=on
 .PHONY: deps

@@ -5,6 +5,7 @@ Nanomsg New Generation surveyor pattern demo with docker and docker-compose.
 ## Local
 ```sh
 make deps
+docker-compose up -d etcd
 goreman start
 open http://127.0.0.1:3200/surveyor/[YOUR QUERY]
 ```
