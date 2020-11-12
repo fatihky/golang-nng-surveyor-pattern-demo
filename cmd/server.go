@@ -23,6 +23,7 @@ var (
 	surveyorAddress  string
 	surveyorTimeout  int
 	surveyorMessages cmap.ConcurrentMap // Just for testing the aggregation of survey's responses and not having race conditions on standard maps
+	e3Disabled       bool
 	e3Endpoints      []string
 	e3Client         *clientv3.Client
 	e3chClient       *e3ch.EtcdHRCHYClient
@@ -38,21 +39,23 @@ var ServerCmd = &cobra.Command{
 		// init etcd kv store
 		// initial etcd v3 client
 		var err error
-		e3Client, err = clientv3.New(clientv3.Config{Endpoints: []string{"127.0.0.1:2379"}})
-		if err != nil {
-			log.Fatal(err)
-		}
+		if !e3Disabled {
+			e3Client, err = clientv3.New(clientv3.Config{Endpoints: e3Endpoints})
+			if err != nil {
+				log.Fatal(err)
+			}
 
-		// new e3ch client with namespace(rootKey)
-		e3chClient, err = e3ch.New(e3Client, "surveyor")
-		if err != nil {
-			log.Fatal(err)
-		}
+			// new e3ch client with namespace(rootKey)
+			e3chClient, err = e3ch.New(e3Client, "surveyor")
+			if err != nil {
+				log.Fatal(err)
+			}
 
-		// set the rootKey as directory
-		err = e3chClient.FormatRootKey()
-		if err != nil {
-			log.Fatal(err)
+			// set the rootKey as directory
+			err = e3chClient.FormatRootKey()
+			if err != nil {
+				log.Fatal(err)
+			}
 		}
 
 		// init default gin-gonic instance
@@ -134,6 +137,7 @@ var ServerCmd = &cobra.Command{
 }
 
 func init() {
+	ServerCmd.Flags().BoolVarP(&e3Disabled, "no-etcd", "", false, "Disable etcd support.")
 	ServerCmd.Flags().StringSliceVarP(&e3Endpoints, "etcd-endpoints", "", []string{"127.0.0.1:2379"}, "Etcd server address")
 	ServerCmd.Flags().StringVarP(&serverAddress, "server-address", "", "0.0.0.0:3200", "HTTP server Address")
 	ServerCmd.Flags().StringVarP(&surveyorAddress, "surveyor-address", "", "tcp://localhost:40999", "Surveyor Address")

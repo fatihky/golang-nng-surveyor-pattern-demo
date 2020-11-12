@@ -6,7 +6,7 @@ export GO111MODULE=on
 BASE_PACKAGE=github.com/x0rzkov
 
 # App name
-APPNAME=golang-nng-surveyor-pattern-demo
+APPNAME=golang-mangos-surveyor-pattern-demo
 
 # Go configuration
 GOOS?=$(shell go env GOHOSTOS)
@@ -150,3 +150,15 @@ plugins:
 	#GOARCH=amd64 PLUGIN=paper2code make plugin
 .PHONY: plugins
  
+ ## Performance tests
+PERF_RATE=30
+PERF_DURATION=25s
+PERF_NAME=$(PERF_RATE)qps
+vegeta:
+	echo ">>> Attack $(PERF_NAME) on $(MAIN_EXE)..."
+	vegeta attack -targets shared/config/vegeta/targets.txt -name=$(PERF_NAME) -rate=$(PERF_RATE) -duration=$(PERF_DURATION) > ./shared/data/vegeta/results.$(PERF_NAME).bin
+	echo ">>> Plotting results from attack $(PERF_NAME)..."
+	cat ./shared/data/vegeta/results.$(PERF_NAME).bin | vegeta plot > ./shared/logs/vegeta/plot.$(PERF_NAME).html
+	echo ">>> Reporting results from attack $(PERF_NAME)..."
+	cat ./shared/data/vegeta/results.$(PERF_NAME).bin | vegeta report -type=text
+.PHONY: vegeta 
