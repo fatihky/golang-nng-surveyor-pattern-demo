@@ -104,13 +104,17 @@ services:
   etcd:
     image: quay.io/coreos/etcd:v3.4.13
     container_name: ${NAMESPACE}-etcd
-    command: etcd -name etcd --listen-client-urls http://0.0.0.0:2379 --advertise-client-urls http://0.0.0.0:2379
     ports:
-    - "2379:2379"
-    - "2380:2380"
+    - 2379:2379
+    - 2380:2380
+    environment:
+    - ETCD_DATA_DIR=/data
+    volumes:
+    - etcd-data:/data
     networks:
     - internal
     - web
+    command: ["etcd", "-name", "etcd", "--listen-client-urls", "http://0.0.0.0:2379", "--advertise-client-urls", "http://0.0.0.0:2379"]
 
   e3w:
     image: x0rzkov/e3w:latest
@@ -118,8 +122,6 @@ services:
       context: .docker/e3w
       dockerfile: Dockerfile
     container_name: ${NAMESPACE}-e3w
-    volumes:
-    - ./shared/config/e3w/config.ini:/app/conf/config.default.ini
     ports:
     - 8085:8085
     depends_on:
@@ -127,6 +129,40 @@ services:
     networks:
     - internal
     - web
+    volumes:
+    - ./shared/config/e3w/config.ini:/app/conf/config.default.ini
+
+  vulcand:
+    image: x0rzkov/vulcand:alpine-latest
+    build:
+      context: .docker/vulcand
+      dockerfile: Dockerfile-alpine
+    ports:
+    - 8181:8181 # API PORT
+    - 8182:8182 # SERVICE PORT
+    depends_on:
+    - etcd
+    networks:
+    - internal
+    - web    
+    command: ["vulcand", "-etcd=http://etcd:4001", "-sealKey=1b727a055500edd9ab826840ce9438dc8bace1c04addc67bbac6b096e25ede4b"]
+
+  vulcand-dashboard:
+    image: x0rzkov/vulcand-dashboard:alpine-latest
+    build:
+      context: .docker/vulcand/dashboard
+      dockerfile: Dockerfile
+    ports:
+    - 8000:8000
+    depends_on:
+    - vulcand
+    networks:
+    - internal
+    - web  
+    volumes:
+    - .docker/vulcand/dashboard/src:/opt/service/src
+    - .docker/vulcand/dashboard/support:/opt/service/support
+    - .docker/vulcand/dashboard/dist:/opt/service/dist
 
 networks:
   internal:
@@ -136,3 +172,4 @@ networks:
 
 volumes:
   redis-data:
+  etcd-data:

@@ -19,3 +19,18 @@
 [submodule ".docker/etcd-goreman"]
 	path = .docker/etcd-goreman
 	url = https://github.com/x0rzkov/eg
+[submodule ".docker/netz"]
+	path = .docker/netz
+	url = https://github.com/x0rzkov/netz
+[submodule ".docker/gopherdiscovery"]
+	path = .docker/gopherdiscovery
+	url = https://github.com/x0rzkov/gopherdiscovery
+[submodule ".docker/nanomsg-service-discovery"]
+	path = .docker/nanomsg-service-discovery
+	url = https://github.com/x0rzkov/nanomsg-service-discovery
+[submodule ".docker/pipes"]
+	path = .docker/pipes
+	url = https://github.com/x0rzkov/pipes
+[submodule ".docker/bulletin"]
+	path = .docker/bulletin
+	url = https://github.com/x0rzkov/bulletin
