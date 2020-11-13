@@ -112,6 +112,22 @@ services:
     - internal
     - web
 
+  e3w:
+    image: x0rzkov/e3w:latest
+    build:
+      context: .docker/e3w
+      dockerfile: Dockerfile
+    container_name: ${NAMESPACE}-e3w
+    volumes:
+    - ./shared/config/e3w/config.ini:/app/conf/config.default.ini
+    ports:
+    - 8085:8085
+    depends_on:
+    - etcd
+    networks:
+    - internal
+    - web
+
 networks:
   internal:
     driver: bridge

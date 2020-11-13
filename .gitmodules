@@ -10,3 +10,12 @@
 [submodule ".docker/e3w"]
 	path = .docker/e3w
 	url = https://github.com/x0rzkov/e3w
+[submodule ".docker/vulcand"]
+	path = .docker/vulcand
+	url = https://github.com/x0rzkov/vulcand
+[submodule ".docker/vulcand-ui"]
+	path = .docker/vulcand-ui
+	url = https://github.com/x0rzkov/etcdrouter-ui
+[submodule ".docker/etcd-goreman"]
+	path = .docker/etcd-goreman
+	url = https://github.com/x0rzkov/eg
