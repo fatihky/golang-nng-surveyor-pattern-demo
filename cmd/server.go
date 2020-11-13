@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"math/rand"
 	"net/http"
 	"time"
 
@@ -10,6 +11,7 @@ import (
 	"github.com/satori/go.uuid"
 	e3ch "github.com/soyking/e3ch"
 	"github.com/spf13/cobra"
+	"github.com/theodesp/find-port"
 	"go.etcd.io/etcd/clientv3"
 	"go.nanomsg.org/mangos/v3"
 	"go.nanomsg.org/mangos/v3/protocol/surveyor"
@@ -65,6 +67,14 @@ var ServerCmd = &cobra.Command{
 		r.GET("/surveyor/:query", func(c *gin.Context) {
 			start := time.Now()
 			query := c.Params.ByName("query")
+
+			openPort, err := findport.DetectOpenPort()
+			if err != nil {
+				log.Fatalf("Get available port failed with %v", err)
+			}
+
+			log.Infof("Found available port at: %v\n", openPort)
+
 			// todo. assert that query is not empty, either return 400 message
 			sock, err := newSurveyor(surveyorAddress)
 			if err != nil {
@@ -90,7 +100,7 @@ var ServerCmd = &cobra.Command{
 
 				reponse["query"] = respondentQuery
 				// sending the auery to the respondent
-				fmt.Println("SERVER: SENDING DATE SURVEY REQUEST")
+				log.Info("SERVER: SENDING DATE SURVEY REQUEST")
 				if err = sock.Send(respondentQueryBytes); err != nil {
 					log.Warnf("Failed sending survey: %s", err)
 					// todo: return 400 message
@@ -137,6 +147,7 @@ var ServerCmd = &cobra.Command{
 }
 
 func init() {
+	rand.Seed(time.Now().Unix())
 	ServerCmd.Flags().BoolVarP(&e3Disabled, "no-etcd", "", false, "Disable etcd support.")
 	ServerCmd.Flags().StringSliceVarP(&e3Endpoints, "etcd-endpoints", "", []string{"127.0.0.1:2379"}, "Etcd server address")
 	ServerCmd.Flags().StringVarP(&serverAddress, "server-address", "", "0.0.0.0:3200", "HTTP server Address")
