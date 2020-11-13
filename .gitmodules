@@ -34,3 +34,6 @@
 [submodule ".docker/bulletin"]
 	path = .docker/bulletin
 	url = https://github.com/x0rzkov/bulletin
+[submodule ".docker/go-kafka-example"]
+	path = .docker/go-kafka-example
+	url = https://github.com/x0rzkov/go-kafka-example
