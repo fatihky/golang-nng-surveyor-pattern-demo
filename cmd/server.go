@@ -198,8 +198,6 @@ func init() {
 	RootCmd.AddCommand(ServerCmd)
 
 	queries = make(chan query)
-	activeQueries = make(map[string]query)
-	queryMetas = make(map[string]querymeta)
 }
 
 func newSurveyor(url string) (sock mangos.Socket, err error) {
@@ -286,17 +284,15 @@ func runSurveyor(url string, close chan bool) {
 // [END - Surveyor]
 
 // [START - Query Manager]
-var (
-	activeQueries map[string]query
-	queryMetas    map[string]querymeta
-)
-
 func runQueryManager(queryPublishEndpoint string, resultSubscribeEndpoint string, cls chan bool) {
 	var pub mangos.Socket
 	var sub mangos.Socket
 	var subch chan []byte
 	var err error
 	var clsSub = make(chan bool)
+
+	activeQueries := make(map[string]query)
+	queryMetas := make(map[string]querymeta)
 
 	pub, err = createPubsubSocket(queryPublishEndpoint, true, true)
 
@@ -311,9 +307,6 @@ func runQueryManager(queryPublishEndpoint string, resultSubscribeEndpoint string
 	}
 
 	subch = createSockRecvChannel(sub, 30*time.Second, clsSub)
-
-	activeQueries := make(map[string]query)
-	queryMetas := make(map[string]querymeta)
 
 	for {
 		exit := false
