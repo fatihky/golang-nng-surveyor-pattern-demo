@@ -1,17 +1,17 @@
 package cmd
 
 import (
-	"fmt"
 	"math/rand"
 	"net/http"
+	"sync/atomic"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	cmap "github.com/orcaman/concurrent-map"
-	"github.com/satori/go.uuid"
+	uuid "github.com/satori/go.uuid"
 	e3ch "github.com/soyking/e3ch"
 	"github.com/spf13/cobra"
-	"github.com/theodesp/find-port"
+	findport "github.com/theodesp/find-port"
 	"go.etcd.io/etcd/clientv3"
 	"go.nanomsg.org/mangos/v3"
 	"go.nanomsg.org/mangos/v3/protocol/surveyor"
@@ -37,6 +37,7 @@ var ServerCmd = &cobra.Command{
 	Short:   "Start the surveyor server",
 	Long:    "Start the surveyor restful server",
 	Run: func(cmd *cobra.Command, args []string) {
+		closeMainCh := make(chan bool)
 
 		// init etcd kv store
 		// initial etcd v3 client
@@ -60,6 +61,9 @@ var ServerCmd = &cobra.Command{
 			}
 		}
 
+		// start main (surveyor, publisher and subscriber)
+		go main(surveyorAddress, closeMainCh)
+
 		// init default gin-gonic instance
 		r := gin.Default()
 
@@ -76,7 +80,8 @@ var ServerCmd = &cobra.Command{
 			log.Infof("Found available port at: %v\n", openPort)
 
 			// todo. assert that query is not empty, either return 400 message
-			sock, err := newSurveyor(surveyorAddress)
+			// sock, err := newSurveyor(surveyorAddress)
+			sock, err := newSurveyor("tcp://0.0.0.0:7964")
 			if err != nil {
 				log.Warnf("newSurveyor.Error: %s", err)
 				// todo: return 400 message
@@ -171,4 +176,79 @@ func newSurveyor(url string) (sock mangos.Socket, err error) {
 		return nil, err
 	}
 	return
+}
+
+// CONSTANTS
+var connectedServiceCount int32 = 0
+
+// [START - Surveyor]
+// Get service count by making a survey on the surveyor port
+func getConnectedServiceCount(sock mangos.Socket) {
+	var err error
+	var cnt int32 = 0
+
+	if err = sock.Send([]byte("whoisalive")); err != nil {
+		log.Fatalf("surveyor: failed sending survey: %s\n", err)
+	}
+
+	for {
+		if _, err = sock.Recv(); err != nil {
+			if err == mangos.ErrRecvTimeout || err == mangos.ErrProtoState {
+				break
+			}
+
+			log.Fatalf("surveyor: failed to recv survey result: %s\n", err)
+		}
+
+		cnt++
+	}
+
+	log.Printf("Connected service count: %d. Previous value: %d\n", cnt, atomic.LoadInt32(&connectedServiceCount))
+
+	atomic.StoreInt32(&connectedServiceCount, cnt)
+}
+
+func runSurveyor(url string, close chan bool) {
+	sock, err := newSurveyor(url)
+
+	if err != nil {
+		log.Fatalf("Can not create a new surveyor socket: %s\n", err)
+	}
+
+	for {
+		exit := false
+
+		select {
+		case <-time.After(5 * time.Second):
+			log.Print("get connected device count")
+			getConnectedServiceCount(sock)
+		case <-close:
+			exit = true
+			break
+		}
+
+		if exit {
+			break
+		}
+	}
+
+	// cleanup
+	sock.Close()
+}
+
+// [END - Surveyor]
+
+// Main
+func main(surveyorUrl string, close chan bool) {
+	cls := make(chan bool)
+
+	go runSurveyor(surveyorUrl, cls)
+
+	select {
+	case <-close:
+		cls <- true // surveyor
+	}
+
+	// wait for some time to cleanup
+	<-time.After(5 * time.Second)
 }

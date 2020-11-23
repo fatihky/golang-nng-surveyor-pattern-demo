@@ -23,8 +23,16 @@ var ClientCmd = &cobra.Command{
 	Short:   "Start the client",
 	Long:    "Start the nng client",
 	Run: func(cmd *cobra.Command, args []string) {
+		clsMain := make(chan bool)
+
+		// give some time to server to spin up
+		time.Sleep(time.Second / 2)
+
+		go cliMain(clsMain)
+
 		for {
-			sock, err := newRespondent(respondentSurveyor)
+			// sock, err := newRespondent(respondentSurveyor)
+			sock, err := newRespondent("tcp://0.0.0.0:7964")
 			if err != nil {
 				// log.Fatal(err)
 				continue
@@ -34,7 +42,6 @@ var ClientCmd = &cobra.Command{
 				if msg, err = sock.Recv(); err != nil {
 					log.Warnf("Cannot recv: %s", err)
 				} else {
-
 					// parse surveyor request
 					var surveyorQuery models.Query
 					if err := json.Unmarshal(msg, &surveyorQuery); err != nil {
@@ -93,4 +100,45 @@ func newRespondent(url string) (sock mangos.Socket, err error) {
 		return nil, err
 	}
 	return
+}
+
+func cliMain(cls chan bool) {
+	clsSockRecvChannel := make(chan bool)
+	respondentSock, err := newRespondent(respondentSurveyor)
+
+	if err != nil {
+		log.Fatalf("Could not create a new socket: %s\n", err)
+	}
+
+	// respondentMessages := sockRecvChannel(respondentSock, 5*time.Second, clsSockRecvChannel)
+
+	for {
+		exit := false
+
+		select {
+		case <-time.After(time.Second / 8):
+			{
+				_, err := respondentSock.Recv()
+
+				if err != nil {
+					if err == mangos.ErrRecvTimeout {
+						break
+					}
+
+					log.Fatalf("respondent: can't receive survey message: %s\n", err)
+				}
+
+				if err = respondentSock.Send([]byte("IamAlive")); err != nil {
+					log.Fatalf("respondent sock: send error: %s", err)
+				}
+			}
+		case <-cls:
+			clsSockRecvChannel <- true
+			exit = true
+		}
+
+		if exit {
+			break
+		}
+	}
 }
