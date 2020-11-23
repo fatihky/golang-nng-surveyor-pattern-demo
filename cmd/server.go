@@ -291,8 +291,8 @@ func runQueryManager(queryPublishEndpoint string, resultSubscribeEndpoint string
 	var err error
 	var clsSub = make(chan bool)
 
-	activeQueries := make(map[string]query)
-	queryMetas := make(map[string]querymeta)
+	activeQueries := make(map[string]*query)
+	queryMetas := make(map[string]*querymeta)
 
 	pub, err = createPubsubSocket(queryPublishEndpoint, true, true)
 
@@ -325,8 +325,8 @@ func runQueryManager(queryPublishEndpoint string, resultSubscribeEndpoint string
 					query.resultch <- result
 				} else {
 					log.Printf("publish query id: %s\n", query.ID)
-					activeQueries[query.ID] = query
-					queryMetas[query.ID] = querymeta{
+					activeQueries[query.ID] = &query
+					queryMetas[query.ID] = &querymeta{
 						timeoutAt:       time.Now().Add(query.maxExecutionTime),
 						receivedResults: make([]queryresult, 0, atomic.LoadInt32(&connectedServiceCount)),
 					}
