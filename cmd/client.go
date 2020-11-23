@@ -15,6 +15,10 @@ import (
 var (
 	respondentName     string
 	respondentSurveyor string
+
+	surveyorConnectEndpoint string
+	querySubEndpoint        string
+	queryResultPubEndpoint  string
 )
 
 var ClientCmd = &cobra.Command{
@@ -28,7 +32,7 @@ var ClientCmd = &cobra.Command{
 		// give some time to server to spin up
 		time.Sleep(time.Second / 2)
 
-		go cliMain(clsMain)
+		go cliMain(surveyorConnectEndpoint, querySubEndpoint, queryResultPubEndpoint, clsMain)
 
 		for {
 			// sock, err := newRespondent(respondentSurveyor)
@@ -86,6 +90,9 @@ var ClientCmd = &cobra.Command{
 
 func init() {
 	ClientCmd.Flags().StringVarP(&respondentSurveyor, "respondent-surveyor", "", "tcp://localhost:40899", "Respondent's surveyor address")
+	ClientCmd.Flags().StringVarP(&surveyorConnectEndpoint, "surveyor-endpoint", "", "tcp://localhost:40700", "Surveyor endpoint")
+	ClientCmd.Flags().StringVarP(&querySubEndpoint, "query-sub-endpoint", "", "tcp://localhost:40701", "Query subscribe endpoint")
+	ClientCmd.Flags().StringVarP(&queryResultPubEndpoint, "result-pub-endpoint", "", "tcp://localhost:40702", "Query result publish endpoint")
 	ClientCmd.Flags().StringVarP(&respondentName, "respondent-name", "", "client0", "Client Name")
 	RootCmd.AddCommand(ClientCmd)
 }
@@ -102,38 +109,112 @@ func newRespondent(url string) (sock mangos.Socket, err error) {
 	return
 }
 
-func cliMain(cls chan bool) {
+// [START Survey Responder]
+func runRespondent(sock mangos.Socket, cls chan bool) {
+	for {
+		exit := false
+
+		// receive and reply survey messages
+		_, err := sock.Recv()
+
+		if err != nil {
+			if err != mangos.ErrRecvTimeout {
+				log.Fatalf("respondent: can't receive survey message: %s\n", err)
+			}
+		} else {
+			if err = sock.Send([]byte("IamAlive")); err != nil {
+				log.Fatalf("respondent sock: send error: %s", err)
+			}
+		}
+
+		// check if we received close signal
+		select {
+		case exit = <-cls:
+			break
+		default:
+			break
+		}
+
+		if exit {
+			log.Print("Respondent: exit signal received. Exiting...")
+			break
+		}
+	}
+
+	log.Print("respondent: exit")
+}
+
+// [END Survey Responder]
+
+// [START Query Processor]
+func processQuery(pub mangos.Socket, query query) {
+	log.Printf("process query: %s\n", query.Question)
+
+	result := queryresult{
+		err:   nil,
+		ID:    query.ID,
+		Items: []string{"test", "result"},
+	}
+
+	if jsonBytes, err := json.Marshal(&result); err != nil {
+		log.Warnf("Can't encode query result: %s\n", err)
+	} else {
+		log.Printf("query result json: %s\n", string(jsonBytes))
+		pub.Send(jsonBytes)
+	}
+}
+
+// [END Query Processor]
+
+// [START Client]
+func cliMain(surveyorEndpoint string, querySubscribeEndpoint string, resultPublishEndpoint string, cls chan bool) {
+	var pub mangos.Socket
+	var sub mangos.Socket
+	clsResp := make(chan bool)
+	clsSub := make(chan bool)
 	clsSockRecvChannel := make(chan bool)
-	respondentSock, err := newRespondent(respondentSurveyor)
+	respondentSock, err := newRespondent(surveyorEndpoint)
 
 	if err != nil {
 		log.Fatalf("Could not create a new socket: %s\n", err)
 	}
 
+	sub, err = createPubsubSocket(querySubscribeEndpoint, false, false)
+
+	if err != nil {
+		die("failed to create query subscribe socket: %s", err)
+	}
+
+	pub, err = createPubsubSocket(resultPublishEndpoint, true, false)
+
+	if err != nil {
+		die("failed to create result publish socket: %s", err)
+	}
+
+	subch := createSockRecvChannel(sub, time.Second, clsSub)
 	// respondentMessages := sockRecvChannel(respondentSock, 5*time.Second, clsSockRecvChannel)
+
+	go runRespondent(respondentSock, clsResp)
 
 	for {
 		exit := false
 
 		select {
-		case <-time.After(time.Second / 8):
+		case msg := <-subch:
 			{
-				_, err := respondentSock.Recv()
+				var query query
 
-				if err != nil {
-					if err == mangos.ErrRecvTimeout {
-						break
-					}
+				if err := json.Unmarshal(msg, &query); err != nil {
+					log.Warnf("Can't decode query json: %s\n", err)
 
-					log.Fatalf("respondent: can't receive survey message: %s\n", err)
+					break
 				}
 
-				if err = respondentSock.Send([]byte("IamAlive")); err != nil {
-					log.Fatalf("respondent sock: send error: %s", err)
-				}
+				go processQuery(pub, query)
 			}
 		case <-cls:
 			clsSockRecvChannel <- true
+			clsSub <- true
 			exit = true
 		}
 
@@ -142,3 +223,5 @@ func cliMain(cls chan bool) {
 		}
 	}
 }
+
+// [END Client]
